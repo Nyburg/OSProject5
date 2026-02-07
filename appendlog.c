@@ -72,6 +72,27 @@ static void append_one_record(int fd, void *map, const char *text32) {
     lock_region(fd, F_UNLCK, rec_start, (off_t)RECORD_SIZE);
 }
 
+static void dump_log(int fd, void *map) {
+    int *header = (int *)map;
+
+    lock_region(fd, F_RDLCK, (off_t)0, (off_t)0);
+
+    int count = header[HEADER_COUNT_INDEX];
+
+    for (int i = 0; i < count; i++) {
+        off_t rec_start = (off_t)HEADER_SIZE + (off_t)i * (off_t)RECORD_SIZE;
+        char *rec_ptr = (char *)map + rec_start;
+
+        char tmp[RECORD_SIZE + 1];
+        memcpy(tmp, rec_ptr, (size_t)RECORD_SIZE);
+        tmp[RECORD_SIZE] = '\0';
+
+        printf("%d: %s\n", i, tmp);
+    }
+
+    lock_region(fd, F_UNLCK, (off_t)0, (off_t)0);
+}
+
 int main(int argc, char **argv) {
     int fd = open(LOG_FILENAME, O_RDWR | O_CREAT | O_TRUNC, 0666);
     if (fd < 0) {
@@ -140,6 +161,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < pairs; i++) {
         wait(NULL);
     }
+
+    dump_log(fd, map);
 
     munmap(map, (size_t)FILE_SIZE);
     close(fd);
